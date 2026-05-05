@@ -4,6 +4,8 @@ A standalone case study applying [`llmcontract`](https://github.com/chrisbartolo
 session-type runtime monitor to the agent trajectories shipped with
 [tau2-bench](https://github.com/sierra-research/tau2-bench).
 
+> Discussion / contribution proposal upstream: [sierra-research/tau2-bench#298](https://github.com/sierra-research/tau2-bench/issues/298)
+
 ## What this shows
 
 tau2-bench's reward function is outcome-based — it hashes the final
