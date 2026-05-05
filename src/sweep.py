@@ -15,7 +15,7 @@ import json
 import sys
 from pathlib import Path
 
-from llmcontract import Monitor, Violation
+from llmcontract import Monitor, Unrecognized, Violation
 
 from protocols.airline import confirm_before_mutation as airline_inv
 from protocols.retail import confirm_before_mutation as retail_inv
@@ -31,6 +31,8 @@ def replay_file(path: Path, domain: str) -> dict[str, int | float | str]:
     sims = raw.get("simulations") or []
     passing, failing = 0, 0
     viol_total, viol_pass, viol_fail = 0, 0, 0
+    sims_with_unrecognized = 0
+    total_unrecognized_events = 0
 
     for s in sims:
         reward = float((s.get("reward_info") or {}).get("reward", 0.0))
@@ -43,10 +45,18 @@ def replay_file(path: Path, domain: str) -> dict[str, int | float | str]:
         events = project_simulation(s)
         monitor = Monitor(PROTOCOL)
         violated = False
+        unrecognized_in_sim = 0
         for ev in events:
-            if isinstance(monitor.send(ev), Violation):
+            result = monitor.send(ev)
+            if isinstance(result, Unrecognized):
+                unrecognized_in_sim += 1
+                continue
+            if isinstance(result, Violation):
                 violated = True
                 break
+        if unrecognized_in_sim:
+            sims_with_unrecognized += 1
+            total_unrecognized_events += unrecognized_in_sim
         if violated:
             viol_total += 1
             if is_pass:
@@ -64,6 +74,8 @@ def replay_file(path: Path, domain: str) -> dict[str, int | float | str]:
         "viol_failing": viol_fail,
         "pct_viol_passing": (100.0 * viol_pass / passing) if passing else 0.0,
         "pct_viol_failing": (100.0 * viol_fail / failing) if failing else 0.0,
+        "sims_w_unrec": sims_with_unrecognized,
+        "unrec_events": total_unrecognized_events,
     }
 
 
@@ -82,8 +94,9 @@ def main(argv: list[str]) -> int:
         "file", "sims", "passing", "failing",
         "viol_total", "viol_passing", "viol_failing",
         "pct_viol_passing", "pct_viol_failing",
+        "sims_w_unrec", "unrec_events",
     ]
-    widths = [44, 5, 8, 8, 11, 13, 13, 17, 17]
+    widths = [44, 5, 8, 8, 11, 13, 13, 17, 17, 13, 13]
 
     def fmt(row: dict[str, int | float | str]) -> str:
         return " ".join(
@@ -105,10 +118,12 @@ def main(argv: list[str]) -> int:
         "viol_total": sum(r["viol_total"] for r in rows),
         "viol_passing": sum(r["viol_passing"] for r in rows),
         "viol_failing": sum(r["viol_failing"] for r in rows),
+        "sims_w_unrec": sum(r["sims_w_unrec"] for r in rows),
+        "unrec_events": sum(r["unrec_events"] for r in rows),
     }
     print()
     print(
-        f"TOTAL retail trajectories: {total['sims']} "
+        f"TOTAL {domain} trajectories: {total['sims']} "
         f"(passing {total['passing']}, failing {total['failing']})"
     )
     if total["passing"]:
@@ -124,6 +139,11 @@ def main(argv: list[str]) -> int:
             f"  → {total['viol_failing']}/{total['failing']} "
             f"({pct_f:.1f}%) of FAILING trajectories violate the invariant"
         )
+    print(
+        f"  → {total['sims_w_unrec']}/{total['sims']} sims contain "
+        f"≥1 Unrecognized event ({total['unrec_events']} events total) — "
+        f"projection uncertainty, not counted as violations"
+    )
     return 0
 
 

@@ -15,11 +15,14 @@ from __future__ import annotations
 from ..retail.confirm_before_mutation import (
     CONFIRM_RE,
     PROTOCOL,
-    project_message as _project_message_retail,
-    project_simulation as _project_simulation_retail,
+    STOP_MARKER,
+    _classify_user,
 )
 
-__all__ = ["MUTATE_TOOLS", "PROTOCOL", "CONFIRM_RE", "project_message", "project_simulation"]
+__all__ = [
+    "MUTATE_TOOLS", "PROTOCOL", "CONFIRM_RE", "STOP_MARKER",
+    "project_message", "project_simulation",
+]
 
 
 MUTATE_TOOLS = {
@@ -35,8 +38,7 @@ MUTATE_TOOLS = {
 def project_message(message: dict) -> list[str]:
     role = message.get("role")
     if role == "user":
-        content = (message.get("content") or "").strip()
-        return ["UserConfirm" if CONFIRM_RE.search(content) else "Other"]
+        return [_classify_user(message.get("content") or "")]
     if role == "assistant":
         events: list[str] = []
         for tc in message.get("tool_calls") or []:

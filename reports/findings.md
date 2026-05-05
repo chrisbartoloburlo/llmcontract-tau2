@@ -37,17 +37,32 @@ rec Idle.!{
 ```
 
 We then project every message in every simulation into the alphabet
-`{Mutate, UserConfirm, Other}`:
+`{Mutate, UserConfirm, Other, UNRECOGNIZED}`:
 
 - assistant message with a tool call → `Mutate` if the tool is in the
   domain's mutating set (per the policy's enumeration), else `Other`.
-- user message → `UserConfirm` if it contains an affirmative token, else
-  `Other`.
+- user message →
+  - `UNRECOGNIZED` if the message is empty after stripping the
+    `###STOP###` end-of-conversation sentinel (the projection has nothing
+    to read);
+  - `UserConfirm` if it contains an affirmative token (`yes`, `yeah`,
+    `sure`, `okay`, `absolutely`, `go ahead`, ...);
+  - `Other` otherwise (real text that doesn't match any affirmative).
 - tool-result messages contribute nothing.
 
+`UNRECOGNIZED` uses the [llmcontract sentinel of the same
+name](https://pypi.org/project/llmsessioncontract/) (≥0.2.2): the monitor
+returns an `Unrecognized` result rather than `Violation`, leaves state
+unchanged, and stays live. In a live agent loop this is the signal an
+outer controller would use to drive a clarification turn ("the user's
+last reply was empty — please ask them to clarify before proceeding"). In
+this offline replay we simply count how often it fires so the headline
+violation count isn't conflated with projection uncertainty.
+
 We feed the projected event stream into `Monitor(PROTOCOL)` and record
-whether the monitor ever rejected an event as a `Violation`. We then
-cross-tab against tau2's own `reward` field.
+whether the monitor ever rejected an event as a `Violation`, plus the
+per-simulation count of `Unrecognized` events. We then cross-tab against
+tau2's own `reward` field.
 
 ## Results
 
@@ -75,6 +90,12 @@ cross-tab against tau2's own `reward` field.
 
 - 11 / 1,755 = **0.6%** of passing trajectories violate the invariant.
 - 13 / 869  = **1.5%** of failing trajectories violate the invariant.
+- 542 / 2,624 sims (**20.7%**) contained at least one `UNRECOGNIZED`
+  user turn — i.e. the user simulator emitted an empty message somewhere
+  in the conversation. These are *not* counted as violations or
+  confirmations; they are surfaced as projection uncertainty so a live
+  outer loop could elicit a clarification turn rather than guess. In
+  this offline replay they leave protocol state unchanged.
 
 ## What the violations look like
 
@@ -157,6 +178,15 @@ same-payment-method-for-refund) would surface more.
   confirmation. A stricter encoding (one confirmation per mutation) would
   raise the violation rate substantially but is closer to the policy's
   literal reading.
+- We deliberately did *not* attempt to detect "mixed-signal" user messages
+  (containing both affirmative and rejection tokens). An early version with
+  a rejection regex produced too many false positives — phrases like *"the
+  reason is 'no longer needed'"* in a clear cancellation confirmation trip
+  on `\bno\b`, inflating the violation count with misclassifications. So
+  `UNRECOGNIZED` is reserved for the highest-confidence uncertainty signal
+  (empty user turns) only. Better classifiers (LLM-as-judge, NLI models)
+  could surface more genuine ambiguity at the cost of nondeterminism in
+  the projection layer.
 
 ## Reproduce
 

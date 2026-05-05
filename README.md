@@ -62,11 +62,19 @@ purely offline replay.
 
 ## Notes
 
-This work surfaced a real bug in `llmcontract`'s FSM compiler
-(`rec X.!{a.X, b.X, c.X}` only allowed the first-taken branch on
-subsequent loops); fix lives in
-[`chrisbartoloburlo/llmcontract@b887e7e`](https://github.com/chrisbartoloburlo/llmcontract/commit/b887e7e).
-The numbers in `reports/findings.md` were produced after the fix.
+- Requires `llmsessioncontract>=0.2.2` (the version that introduced the
+  `UNRECOGNIZED` sentinel and the `Unrecognized` result type).
+- This work surfaced a real bug in `llmcontract`'s FSM compiler
+  (`rec X.!{a.X, b.X, c.X}` only allowed the first-taken branch on
+  subsequent loops); fix lives in
+  [`chrisbartoloburlo/llmcontract@b887e7e`](https://github.com/chrisbartoloburlo/llmcontract/commit/b887e7e).
+  The numbers in `reports/findings.md` were produced after the fix.
+- The case study also drove the addition of the `UNRECOGNIZED` sentinel
+  in `llmcontract` itself: empty user turns in tau2 trajectories
+  weren't sensibly handled by a binary "confirmed / not confirmed"
+  projection, so we added a third "projection uncertainty" output and
+  used it here. Released as
+  [`v0.2.2`](https://github.com/chrisbartoloburlo/llmcontract/releases/tag/v0.2.2).
 
 ## License
 
