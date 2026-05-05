@@ -5,6 +5,8 @@ session-type runtime monitor to the agent trajectories shipped with
 [tau2-bench](https://github.com/sierra-research/tau2-bench).
 
 > Discussion / contribution proposal upstream: [sierra-research/tau2-bench#298](https://github.com/sierra-research/tau2-bench/issues/298)
+> 
+> Companion repo: [`llmcontract-playwright-mcp`](https://github.com/chrisbartoloburlo/llmcontract-playwright-mcp) — same methodology applied to the *agent ↔ tool* layer, against `@playwright/mcp`.
 
 ## What this shows
 
